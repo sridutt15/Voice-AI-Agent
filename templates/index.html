@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Voice Agent</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/aurora.css" />
+</head>
+<body>
+    <div class="container d-flex flex-column justify-content-center align-items-center min-vh-100">
+        <div class="glass-card text-center">
+            <h2 class="mb-3 fw-light">Voice Agent</h2>
+            <p id="statusDisplay" class="mb-4">Tap the icon to start the conversation.</p>
+            
+            <div class="d-flex justify-content-center align-items-center my-4">
+                <button id="recordBtn" title="Start Recording"></button>
+            </div>
+            
+            <audio id="audioPlayer" hidden></audio>
+
+            <button id="transcriptToggleBtn" class="btn btn-outline-light btn-sm">Show Transcript</button>
+            <div id="transcriptContainer" class="transcript-container mt-3" hidden>
+                </div>
+        </div>
+        <div class="text-center mt-3" style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">
+            Powered by Murf.ai, Gemini, AssemblyAPI & FASTAPI
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

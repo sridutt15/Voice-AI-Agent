@@ -1,0 +1,12 @@
+# Ignore the Python virtual environment folder
+venv/
+
+# Ignore the secret .env file
+.env
+
+# Ignore the temporary uploads folder
+uploads/
+
+# Python cache
+__pycache__/
+*.pyc
