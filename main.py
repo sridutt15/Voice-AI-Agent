@@ -1,101 +1,120 @@
-from fastapi import FastAPI, Request, UploadFile, File, Path
-from fastapi.responses import JSONResponse, FileResponse
+# main.py
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from dotenv import load_dotenv
-import requests
-import os
-import assemblyai as aai
-import google.generativeai as genai
-from typing import Dict, List, Any
+import logging
+import asyncio
+import base64
+import re
+from websockets.exceptions import ConnectionClosed
 
-# Load environment variables from .env
-load_dotenv()
+# Import services and config
+import config
+from services import stt, llm, tts
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = FastAPI()
 
-# --- SETUP DIRECTORIES ---
-if not os.path.exists("static"):
-    os.makedirs("static")
-if not os.path.exists("templates"):
-    os.makedirs("templates")
-
+# Mount static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- LOAD API KEYS ---
-MURF_API_KEY = os.getenv("MURF_API_KEY")
-ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-# --- CONFIGURE APIS ---
-if ASSEMBLYAI_API_KEY:
-    aai.settings.api_key = ASSEMBLYAI_API_KEY
-else:
-    print("Warning: ASSEMBLYAI_API_KEY not found.")
-
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-else:
-    print("Warning: GEMINI_API_KEY not found.")
-
-chat_histories: Dict[str, List[Dict[str, Any]]] = {}
 
 @app.get("/")
 async def home(request: Request):
+    """Serves the main HTML page."""
     return templates.TemplateResponse("index.html", {"request": request})
 
-@app.post("/agent/chat/{session_id}")
-async def agent_chat(
-    session_id: str = Path(..., description="The unique ID for the chat session."),
-    audio_file: UploadFile = File(...)
-):
-    fallback_audio_path = "static/fallback.mp3"
 
-    if not all([GEMINI_API_KEY, ASSEMBLYAI_API_KEY, MURF_API_KEY]):
-        print("An API key is missing. Returning fallback audio.")
-        return FileResponse(fallback_audio_path, media_type="audio/mpeg", headers={"X-Error": "true"})
+@app.websocket("/ws")
+async def websocket_endpoint(
+    websocket: WebSocket,
+    assemblyai_key: str = Query(None),
+    gemini_key: str = Query(None),
+    murf_key: str = Query(None),
+    serpapi_key: str = Query(None),
+):
+    """Handles WebSocket connection for real-time transcription and voice response."""
+    await websocket.accept()
+    logging.info("WebSocket client connected.")
+
+    # 1. Resolve API Keys: Use client-provided keys or fall back to .env
+    final_aai_key = assemblyai_key or config.ASSEMBLYAI_API_KEY
+    final_gemini_key = gemini_key or config.GEMINI_API_KEY
+    final_murf_key = murf_key or config.MURF_API_KEY
+    final_serpapi_key = serpapi_key or config.SERPAPI_API_KEY
+
+    # Check if essential keys are missing
+    if not all([final_aai_key, final_gemini_key, final_murf_key]):
+        logging.error("Missing one or more essential API keys.")
+        await websocket.send_json({"type": "error", "message": "Server is missing essential API keys."})
+        await websocket.close()
+        return
+
+    loop = asyncio.get_event_loop()
+    chat_history = []
+
+    async def handle_transcript(text: str):
+        """Processes final transcript, gets LLM/TTS responses, and streams audio."""
+        await websocket.send_json({"type": "final", "text": text})
+
+        try:
+            # Decide if a web search is needed
+            should_search = llm.should_search_web(text, final_gemini_key)
+
+            if should_search and final_serpapi_key:
+                full_response, updated_history = llm.get_web_response(text, chat_history, final_gemini_key, final_serpapi_key)
+            else:
+                full_response, updated_history = llm.get_llm_response(text, chat_history, final_gemini_key)
+
+            # Update history for the next turn
+            chat_history.clear()
+            chat_history.extend(updated_history)
+
+            await websocket.send_json({"type": "assistant", "text": full_response})
+
+            # Split response into sentences for smoother TTS streaming
+            sentences = re.split(r'(?<=[.?!])\s+', full_response.strip())
+            
+            for sentence in sentences:
+                clean_sentence = sentence.strip()
+                if clean_sentence:
+                    # Run the blocking TTS function in a separate thread
+                    audio_bytes = await loop.run_in_executor(
+                        None, tts.speak, clean_sentence, final_murf_key
+                    )
+                    if audio_bytes:
+                        b64_audio = base64.b64encode(audio_bytes).decode('utf-8')
+                        await websocket.send_json({"type": "audio", "b64": b64_audio})
+
+        except (WebSocketDisconnect, ConnectionClosed) as e:
+            logging.warning(f"Client disconnected during processing: {e}")
+        except Exception as e:
+            logging.error(f"Error in LLM/TTS pipeline: {e}", exc_info=True)
+            await websocket.send_json({"type": "assistant", "text": "Sorry, I encountered an error."})
+
+
+    def on_final_transcript(text: str):
+        """Callback to safely schedule the async handler from the transcriber thread."""
+        logging.info(f"Final transcript received: {text}")
+        asyncio.run_coroutine_threadsafe(handle_transcript(text), loop)
+
+    # Initialize transcriber with the resolved API key
+    transcriber = stt.AssemblyAIStreamingTranscriber(
+        api_key=final_aai_key,
+        on_final_callback=on_final_transcript
+    )
 
     try:
-        # 1. Transcribe audio to text
-        transcriber = aai.Transcriber()
-        transcript = transcriber.transcribe(audio_file.file)
-
-        if transcript.status == aai.TranscriptStatus.error or not transcript.text:
-            raise Exception(f"Transcription failed: {transcript.error or 'No speech detected'}")
-
-        user_query_text = transcript.text
-      
-        # 2. Get LLM response
-        session_history = chat_histories.get(session_id, [])
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        chat = model.start_chat(history=session_history)
-        response = chat.send_message(user_query_text)
-        llm_response_text = response.text
-
-        # 3. Update history
-        chat_histories[session_id] = chat.history
-
-        # 4. Generate TTS
-        url = "https://api.murf.ai/v1/speech/generate"
-        headers = {"Content-Type": "application/json", "api-key": MURF_API_KEY}
-        payload = {"text": llm_response_text, "voiceId": "en-US-natalie", "format": "MP3"}
-
-        murf_response = requests.post(url, json=payload, headers=headers)
-        murf_response.raise_for_status()
-        audio_url = murf_response.json().get("audioFile")
-
-        if audio_url:
-            # MODIFIED: Return user and agent text along with the audio URL
-            return JSONResponse(content={
-                "audio_url": audio_url,
-                "user_text": user_query_text,
-                "agent_text": llm_response_text
-            })
-        else:
-            raise Exception("Murf API did not return an audio file.")
-
+        while True:
+            data = await websocket.receive_bytes()
+            transcriber.stream_audio(data)
+    except WebSocketDisconnect:
+        logging.info("WebSocket client disconnected.")
     except Exception as e:
-        print(f"An error occurred in the agent chat endpoint: {e}")
-        return FileResponse(fallback_audio_path, media_type="audio/mpeg", headers={"X-Error": "true"})
+        logging.error(f"WebSocket error: {e}")
+    finally:
+        transcriber.close()
+        logging.info("Transcription resources released.")
