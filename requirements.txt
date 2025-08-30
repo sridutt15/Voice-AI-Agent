@@ -4,5 +4,5 @@ python-dotenv
 jinja2
 google-generativeai
 serpapi
-murf-ai
+murf
 assemblyai
