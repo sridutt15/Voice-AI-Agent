@@ -1,83 +1,101 @@
-# 🎙 Voice AI Agent
+# 🎙️ My Voice AI Agent with Web Search
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/) 
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/) 
-[![JavaScript](https://img.shields.io/badge/JavaScript-ES6-yellow.svg)](https://developer.mozilla.org/en-US/docs/Web/JavaScript) 
-[![Made with ❤️](https://img.shields.io/badge/Made%20with-%E2%9D%A4-red.svg)](#) 
-
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
+[![WebSockets](https://img.shields.io/badge/WebSockets-Real--Time-blueviolet)](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)
+[![JavaScript](https://img.shields.io/badge/JavaScript-ES6-yellow.svg)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+[![License](https://img.shields.io/badge/License-MIT-orange.svg)](LICENSE)
+[![Made with ❤️](https://img.shields.io/badge/Made%20with-%E2%9D%A4-red.svg)](#)
 ## Overview 📝
 
-*This repository contains the code for a fully interactive, **Voice-Activated AI agent** built with FastAPI and modern web technologies. The project documents the journey of creating a sophisticated conversational AI from scratch. The final application allows a user to have a natural, voice-to-voice conversation with an AI that can remember the context of the dialogue, all powered by a robust stack of AI services.*
- 
+This repository contains the code for **My Voice Assistant**, a fully interactive, **real-time voice AI agent**. Built with a streaming-first architecture using WebSockets and FastAPI, this project moves beyond simple request-response models to enable fluid, low-latency conversations.
+
+My Assistant can understand you as you speak, think, and talk back in a continuous flow. It remembers the context of your conversation, can **search the web for up-to-the-minute information**, and allows users to securely use their own API keys directly in the browser.
+
+
+
+---
+
 ## Key Features ✨
 
-* ****End-to-End Voice Conversation****: *A seamless, voice-in, voice-out interaction loop.*
+* ****⚡ Real-Time Streaming:**** End-to-end audio streaming for both Speech-to-Text (STT) and Text-to-Speech (TTS) using WebSockets, providing a highly responsive and natural conversational experience.
 
-* ****Session-Based Memory****: *The agent remembers the context of the conversation within a session, allowing for natural follow-up questions.*
+* ****🧠 Live Web Search:**** MARVIS can determine when a query requires current information (e.g., "What's the weather today?") and use ****SerpApi**** to perform a live Google search to provide accurate, timely answers.
 
-* ****Real-time Visual Feedback****: *The UI dynamically updates to show whether the agent is idle, recording, or processing, providing a clear user experience.*
+* ****👤 Defined AI Persona:**** The agent operates with a pre-defined personality inspired by JARVIS, making interactions more engaging and consistent.
 
-* ****Transcript Display****: *An optional, toggleable transcript allows users to see the conversation in text form.*
+* ****🔑 Client-Side API Key Management:**** A secure settings modal allows users to enter their own API keys, which are stored in the browser's `localStorage` and never exposed to the server logs or other users. The server can also be configured with fallback keys.
 
-* ****Graceful Error Handling****: *A fallback audio response is played if any backend process fails, preventing a jarring user experience.*
+* ****💬 Session-Based Memory:**** The agent maintains conversation history within a single WebSocket session, allowing for contextual follow-up questions.
 
-* ****Secure API Key Management****: *All API keys are loaded from a `.env` file and are never exposed on the client-side.*
+* ****🖥️ Rich Frontend:**** A clean, modern UI built with a glassmorphism design that provides real-time feedback on the agent's status (listening, thinking, speaking) and displays a live transcript of the conversation.
 
-## TechStack & Purpose 🛠️
+---
 
-*This project integrates several technologies to create a cohesive experience.*
+## Tech Stack & Purpose 🛠️
+
+This project integrates several key technologies to create its real-time architecture.
 
 ### Frontend (Browser)
 
-* ****HTML, CSS, & JavaScript****: *The core technologies for building the user interface and client-side logic.*
+* ****HTML, CSS, & JavaScript****: The core for the user interface and client-side logic.
 
-* ****Bootstrap****: *A CSS framework used for UI components like the loading spinner.*
+* ****WebSockets API****: The backbone of real-time, bidirectional communication between the client and the server.
 
-* ****MediaRecorder API****: *A browser-based API used to capture audio directly from the user's microphone.*
+* ****MediaStream API****: Captures microphone audio, which is then processed and streamed to the backend.
 
 ### Backend (Python)
 
-* ****FastAPI****: *A high-performance web framework used to build the API that connects the frontend to the AI services.*
+* ****FastAPI****: A high-performance web framework used to handle WebSocket connections and orchestrate the AI services.
 
-* ****Uvicorn****: *The ASGI server that runs the FastAPI application.*
+* ****Uvicorn****: The ASGI server that runs the FastAPI application.
 
-* ****Python-Dotenv****: *Manages environment variables, allowing for secure handling of API keys by loading them from a `.env` file.*
+* ****AssemblyAI SDK****: Used for real-time streaming transcription of the user's voice.
 
-* ****Requests****: *A simple and powerful library for making HTTP requests to the Murf AI API.*
+* ****Google Generative AI SDK****: Provides access to the Gemini Large Language Model for generating intelligent responses.
 
-* ****AssemblyAI SDK****: *The official Python client for AssemblyAI's Speech-to-Text API.*
+* ****Murf SDK****: Used for streaming Text-to-Speech synthesis to generate the agent's voice in real-time.
 
-* ****Google Generative AI SDK****: *The official Python client for the Google Gemini Large Language Model.*
+* ****Google Search Results (SerpApi)****: The library used to perform live web searches.
+
+* ****Python-Dotenv****: Manages server-side fallback API keys from a `.env` file.
+
+---
 
 ## Architecture 🏗️
 
-The application follows a ****Client-Server Architecture****.
+The application uses a **WebSocket-based streaming architecture** to minimize latency.
 
-* ****Client (Frontend)****: *The user interface running in the browser. It is responsible for capturing user audio and displaying the agent's response.*
 
-* ****Server (Backend)****: The FastAPI application acts as an orchestrator. It receives audio from the client and manages the entire AI pipeline by communicating with the various external APIs (AssemblyAI, Gemini, Murf AI) in sequence.
+
+* ****Client (Frontend)****: The browser establishes a persistent WebSocket connection to the server. It continuously streams raw microphone audio to the backend and plays incoming audio chunks from the server as they arrive.
+
+* ****Server (Backend)****: The FastAPI server acts as a central hub. It manages the WebSocket connection and orchestrates the flow of data between the various AI services in a non-blocking, asynchronous manner.
+
+---
 
 ## How It Works ⚙️
 
-Here is the step-by-step flow for a single turn in a conversation:
+1.  ****WebSocket Connection****: The user opens the web page, and the browser establishes a WebSocket connection with the FastAPI server, passing API keys from `localStorage` as query parameters.
 
-1. ****Audio Capture****: The user clicks the record button, and the browser's `MediaRecorder` API captures their voice.
+2.  ****Audio Streaming (Client → Server)****: The user holds the record button. The browser captures audio and streams it in small chunks to the 
+server over the WebSocket.
 
-2. ****Send to Server****: The captured audio is sent as a file to the FastAPI backend.
+3.  ****Real-Time Transcription (Server ↔ AssemblyAI)****: The server forwards the audio chunks to **AssemblyAI's** streaming STT service. Once the user finishes speaking, AssemblyAI returns the final transcript to the server via a callback.
 
-3. ****Speech-to-Text (STT)****: The server forwards the audio to **AssemblyAI**, which transcribes it into text.
+4.  ****Web Search Decision (LLM)****: The server sends a preliminary request to the **Gemini** model to determine if the user's query requires a web search.
 
-4. ****LLM Processing****: The transcribed text is sent to the **Google Gemini** model along with the previous conversation history for that session.
+5.  ****Information Retrieval (Server → SerpApi)****: If a search is needed, the server queries the **Google Search Results API** via SerpApi to get relevant snippets of information.
 
-5. ****Generate Response****: Gemini generates a contextually relevant text response.
+6.  ****Response Generation (LLM)****: The final transcript, along with chat history and any web search results, is sent to **Gemini**, which generates a contextually relevant text response.
 
-6. ****Update History****: The server updates the session's chat history with the new user query and agent response.
+7.  ****Real-Time Speech Synthesis (Server ↔ Murf)****: The server splits the text response into sentences and streams each sentence to the **Murf** TTS API.
 
-7. ****Text-to-Speech (TTS)****: The agent's text response is sent to the **Murf AI** API to be converted into high-quality audio.
+8.  ****Audio Streaming (Server → Client)****: Murf streams the resulting audio back to the server, which immediately encodes it in base64 and forwards it to the client over the WebSocket.
 
-8. ****Respond to Client****: The server sends a JSON object containing the URL of the generated audio and the text transcript back to the client.
+9.  ****Playback & UI Update****: The browser receives the audio chunks, queues them for seamless playback, and updates the chat log with the user and assistant transcripts.
 
-9. ****Playback****: The browser plays the audio response, updates the transcript on the screen, and the UI returns to an idle state, ready for the next interaction.
+---
 
 ## Getting Started 🚀
 
@@ -86,54 +104,48 @@ Follow these instructions to get a local copy up and running.
 ### Prerequisites
 
 * Python 3.8+
-
 * API keys for:
-
-  * Murf AI
-
-  * AssemblyAI
-
-  * Google Gemini
+    * **Murf AI**
+    * **AssemblyAI**
+    * **Google Gemini**
+    * **SerpApi** (Optional, for web search)
 
 ### Installation & Setup
 
-1. ****Clone the repository:****
+1.  ****Clone the repository:****
+    ```bash
+    git clone [https://github.com/sridutt15/Voice-AI-Agent.git](https://github.com/sridutt15/Voice-AI-Agent.git)
+    cd Voice-AI-Agent
+    ```
 
-   ```bash
-   git clone [https://github.com/your-username/your-repo-name.git](https://github.com/your-username/your-repo-name.git)
-   cd your-repo-name
-   ```
+2.  ****Install Python dependencies:****
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-2. ****Install Python dependencies:****
+3.  ****Create a server environment file (optional):****
+    You can run the application entirely with keys provided in the browser. However, for development, you can create a file named `.env` in the project root to provide server-side fallback keys:
+    ```
+    MURF_API_KEY="your_murf_api_key_here"
+    ASSEMBLYAI_API_KEY="your_assemblyai_api_key_here"
+    GEMINI_API_KEY="your_gemini_api_key_here"
+    SERPAPI_API_KEY="your_serpapi_key_here"
+    ```
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+4.  ****Run the server:****
+    ```bash
+    uvicorn main:app --reload
+    ```
 
-3. ****Create an environment file:****
-   Create a file named `.env` in the root of the project directory and add your API keys:
+5.  ****Open the application:****
+    * Navigate to `https://my-voice-assistant-f1j9.onrender.com/?session_id=80adf541-d37a-4f6d-84c0-a4478104784d` in your web browser.
+    * Click the **settings icon (⚙️)** to enter your API keys.
+    * Grant microphone permissions and start talking!
 
-   ```
-   MURF_API_KEY="your_murf_api_key_here"
-   ASSEMBLYAI_API_KEY="your_assemblyai_api_key_here"
-   GEMINI_API_KEY="your_gemini_api_key_here"
-   ```
-
-4. ****Run the server:****
-
-   ```bash
-   uvicorn main:app --reload
-   ```
-
-5. ****Open the application:****
-   Navigate to `http://127.0.0.1:8000` in your web browser. Grant microphone permissions when prompted and start talking!
+---
 
 ## ⚠️ Important Notes
 
-* ****API Key Security****: Your `.env` file contains sensitive API keys. **Do not** commit this file to GitHub or share it publicly. Ensure that `.env` is listed in your `.gitignore` file.
+* ****API Key Security****: The application is designed to use keys provided by the client, which are stored in the browser's `localStorage`. The optional `.env` file should still be kept secure and listed in your `.gitignore` file.
 
-* ****In-Memory Chat History****: The conversation history is stored in a Python dictionary on the server. This means that **all chat histories will be erased if the server restarts**. For persistent storage, you would need to integrate a database.
-
-
-<!-- [![License](https://img.shields.io/badge/License-MIT-orange.svg)](LICENSE)-->
-<!-- [![Made with ❤️](https://img.shields.io/badge/Made%20with-%E2%9D%A4-red.svg)](#)-->
+* ****Connection-Based Chat History****: The conversation history is stored in memory for the duration of a single WebSocket connection. If the connection is dropped or the server restarts, the history will be erased.
