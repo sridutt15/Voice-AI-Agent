@@ -3,6 +3,6 @@ uvicorn[standard]
 python-dotenv
 jinja2
 google-generativeai
-serpapi
+google-search-results
 murf
 assemblyai
