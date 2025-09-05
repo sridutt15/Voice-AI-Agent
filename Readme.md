@@ -108,7 +108,7 @@ server over the WebSocket.*
     * **Murf AI**
     * **AssemblyAI**
     * **Google Gemini**
-    * **SerpApi** (Optional, for web search)
+    * **SerpApi** (for web search)
 
 ### Installation & Setup
 
